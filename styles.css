@@ -336,8 +336,7 @@ small,
 }
 
 #search-box::before {
-  font-family: 'Font Awesome 5 Free';
-  font-weight: 900;
+  font: var(--fa-font-solid);
   content: "\f002";
   font-size: 1rem;
   opacity: 0.25;
@@ -1361,8 +1360,7 @@ article .article-metadata {
   transform: translate(0, -50%);
   opacity: 0;
   transition: all 0.2s ease-out;
-  font-family: 'Font Awesome 5 Free';
-  font-weight: 900;
+  font: var(--fa-font-solid);
   content: '\f0c1';
   text-align: center;
   font-size: 3rem;
@@ -1861,16 +1859,14 @@ div.alert > div:first-child::before {
   left: -2rem;
   font-size: 1.5rem;
   color: #209cee;
-  font-family: 'Font Awesome 5 Free';
-  font-weight: 900;
-  content: '\f05a';
+  font: var(--fa-font-solid);
+  content: '\f007';
   width: 1.5rem;
   text-align: center;
 }
 
 div.alert-warning > div:first-child::before {
-  font-family: 'Font Awesome 5 Free';
-  font-weight: 900;
+  font: var(--fa-font-solid);
   color: #ff3860;
   content: '\f071';
 }
