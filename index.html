@@ -504,7 +504,7 @@
             <p style="font-size: 20px; color: blue;">Postdocs</p>
 
 
-            <li class="ul-students" title="Julie Inglis ◊">
+            <li class="ul-students" title="Julie Inglis">
               <a href="https://www.julieinglis.com/"><img class="studentpic" height="500" src="img/people/Julie_Inglis.avif"></a>
             </li>
 
@@ -526,32 +526,32 @@
             
             <p style="font-size: 20px; color: blue;">Undergraduate Students</p>
 
-            <li class="ul-students" title="Julia Zhang †">
-              <a href=""><img class="studentpic" src="img/people/silhouette.png"></a>
+            <li class="ul-students" title="Julia Zhang">
+              <!--<a href=""><img class="studentpic" src="img/people/silhouette.png"></a>-->
             </li>
             
-            <li class="ul-students" title="Nishtha Panging †">
-              <a href=""><img class="studentpic" src="img/people/silhouette.png"></a>
+            <li class="ul-students" title="Nishtha Panging">
+              <!--<a href=""><img class="studentpic" src="img/people/silhouette.png"></a>-->
             </li>
             
-            <li class="ul-students" title="Tue Thai †">
-              <a href=""><img class="studentpic" src="img/people/silhouette.png"></a>
+            <li class="ul-students" title="Tue Thai">
+              <!--<a href=""><img class="studentpic" src="img/people/silhouette.png"></a>-->
             </li>
             
-            <li class="ul-students" title="Barron Nguyen †§">
-              <a href=""><img class="studentpic" src="img/people/silhouette.png"></a>
+            <li class="ul-students" title="Barron Nguyen §">
+              <!--<a href=""><img class="studentpic" src="img/people/silhouette.png"></a>-->
             </li>
             
-            <li class="ul-students" title="Piper Lentz †§">
-              <a href=""><img class="studentpic" src="img/people/silhouette.png"></a>
+            <li class="ul-students" title="Piper Lentz §">
+              <!--<a href=""><img class="studentpic" src="img/people/silhouette.png"></a>-->
             </li>
             
-            <li class="ul-students" title="Aadhithiya Anbalagan †">
-              <a href=""><img class="studentpic" src="img/people/silhouette.png"></a>
+            <li class="ul-students" title="Aadhithiya Anbalagan">
+              <!--<a href=""><img class="studentpic" src="img/people/silhouette.png"></a>-->
             </li>
 
-            <li class="ul-students" title="Aditya Rao †">
-              <a href=""><img class="studentpic" src="img/people/silhouette.png"></a>
+            <li class="ul-students" title="Aditya Rao §">
+              <!--<a href=""><img class="studentpic" src="img/people/silhouette.png"></a>-->
             </li>
 
           </ul>
@@ -560,35 +560,35 @@
 
           <ul class="ul-students">
 
-            <li class="ul-students" title="Hanan Sayes"></li>
+            <li class="ul-students" title="Hanan Sayes †"></li>
 
-            <li class="ul-students" title="Danny Nguyen"></li>
+            <li class="ul-students" title="Danny Nguyen ¶"></li>
 
-            <li class="ul-students" title="Tianxing 'Sky' Zhou"></li>
+            <li class="ul-students" title="Tianxing 'Sky' Zhou †¶"></li>
 
             <li class="ul-students" title="Preethi Karpoor"></li>
 
-            <li class="ul-students" title="Jackie Scullin"></li>
+            <li class="ul-students" title="Jackie Scullin †"></li>
 
-            <li class="ul-students" title="Ashleann Chen"></li>
+            <li class="ul-students" title="Ashleann Chen †"></li>
 
-            <li class="ul-students" title="Jacob Craighead"></li>
+            <li class="ul-students" title="Jacob Craighead †"></li>
 
-            <li class="ul-students" title="Weston Chester"></li>
+            <li class="ul-students" title="Weston Chester †"></li>
 
-            <li class="ul-students" title="Lexu 'Gavin' Zhao"></li>
+            <li class="ul-students" title="Lexu 'Gavin' Zhao †"></li>
 
-            <li class="ul-students" title="Aman Parikh"></li>
+            <li class="ul-students" title="Aman Parikh &#8734;"></li>
 
-            <li class="ul-students" title="So Hirota"></li>
+            <li class="ul-students" title="So Hirota †"></li>
 
-            <li class="ul-students" title="Russell Van Linge"></li>
+            <li class="ul-students" title="Russell Van Linge †"></li>
 
-            <li class="ul-students" title="Roberto Tejada Arevalo"></li>
+            <li class="ul-students" title="Roberto Tejada Arevalo †"></li>
 
-            <li class="ul-students" title="Dennis Calderon"></li>
+            <li class="ul-students" title="Dennis Calderon †"></li>
 
-            <li class="ul-students" title="Chelsea Adelman"></li>
+            <li class="ul-students" title="Chelsea Adelman †"></li>
 
           </ul>
 
@@ -869,6 +869,35 @@
   <script>hljs.initHighlightingOnLoad();</script>
 
   <script src="js/academic.min.js"></script>
+
+  <script>
+    // Place this just before </body>
+    window.addEventListener('load', () => {
+      document.querySelectorAll('.cryptedmail').forEach(a => {
+        // compose email and ensure mailto href
+        const email = `${a.dataset.name}@${a.dataset.domain}.${a.dataset.tld}`;
+        a.href = `mailto:${email}`;
+
+        // Normalize visible text:
+        // - If the element already contains the email more than once, replace with one copy
+        // - If it's empty, put a safe label ("Email")
+        const t = (a.textContent || '').trim();
+        const escaped = email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const occurrences = (t.match(new RegExp(escaped, 'g')) || []).length;
+
+        if (occurrences > 1) {
+          a.textContent = email; // collapse duplicates to single email
+        } else if (!t) {
+          a.textContent = ''; // avoid exposing raw address if other script already wrote something
+        }
+
+        // Accessibility: always provide an aria-label so screen readers are clear
+        a.setAttribute('aria-label', `Email ${a.dataset.name}`);
+      });
+    });
+  </script>
+
+
 
 </body>
 </html>
