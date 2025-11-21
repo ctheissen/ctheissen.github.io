@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UCSD Transit Team</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <div class="site-title">UCSD Transit Team</div>
+      <nav class="site-nav">
+        <a href="#transit-roster" class="nav-link">Team Roster</a>
+        <a href="#transit-schedule" class="nav-link">Observing Schedule</a>
+        <a href="#transit-resources" class="nav-link">Resources</a>
+        <a href="https://ctheissen.github.io/" class="lab-link">
+          <span>Stellar Data Lab</span>
+          <img src="assets/img/stellar-data-lab-logo.png"
+               alt="Stellar Data Lab logo"
+               class="lab-logo" />
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-main">
+    <div class="ucsd-transit-page">
+
+      <!-- HERO / INTRO -->
+      <section class="transit-hero">
+        <div class="transit-hero-text">
+          <h1>UCSD Transit Team</h1>
+          <p class="lead">
+            The UCSD Transit Team is a student-centered collaboration within UC San Diego focused on
+            follow-up observations of transiting exoplanet candidates using facilities such as Lick Observatory. 
+          </p>
+        </div>
+        <div class="transit-hero-logo">
+          <img src="assets/img/ucsd-transit-team-logo.png" alt="UCSD Transit Team logo" />
+        </div>
+      </section>
+
+      <!-- TEAM ROSTER -->
+      <section id="transit-roster" class="transit-section">
+        <h2>Team Roster</h2>
+        <div class="table-wrapper">
+          <table class="transit-table">
+            <thead>
+              <tr><th>Name</th><th>Role</th></tr>
+            </thead>
+            <tbody id="roster-tbody">
+              <tr><td colspan="2">Loading roster…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SCHEDULE -->
+      <section id="transit-schedule" class="transit-section">
+        <h2>Observing Schedule</h2>
+        <p>
+          The list below shows the three observing nights closest to today (past or future).<br/>
+          For nights in the future, weather forecasts from the National Weather Service are automatically
+          integrated when available (~7–10 days out).
+        </p>
+
+        <!-- Mt. Hamilton current conditions -->
+        <div class="current-conditions">
+          <h3>Current Mt. Hamilton Conditions</h3>
+          <div class="current-row">
+            <div class="current-block">
+              <div class="cc-label">Now</div>
+              <div id="mh-current-now" class="cc-value">Loading current conditions…</div>
+            </div>
+            <div class="current-block">
+              <div class="cc-label">Tonight</div>
+              <div id="mh-current-tonight" class="cc-value">Loading tonight’s forecast…</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="schedule-controls">
+          <div class="control">
+            <label for="observer-filter">Observer:</label>
+            <select id="observer-filter"><option value="">All observers</option></select>
+          </div>
+          <div class="control">
+            <label for="telescope-filter">Telescope:</label>
+            <select id="telescope-filter"><option value="">All telescopes</option></select>
+          </div>
+          <div class="control view-toggle">
+            <span>View:</span>
+            <button id="view-list" class="view-btn active" type="button">List (3 nearest)</button>
+            <button id="view-calendar" class="view-btn" type="button">By date (all)</button>
+          </div>
+        </div>
+
+        <div id="schedule-status" class="schedule-status">Loading schedule…</div>
+
+        <div id="schedule-list-view" class="table-wrapper">
+          <table class="transit-table">
+            <thead id="schedule-thead"></thead>
+            <tbody id="schedule-tbody"></tbody>
+          </table>
+        </div>
+
+        <div id="schedule-calendar-view" class="calendar-view" style="display:none;"></div>
+      </section>
+
+      <!-- RESOURCES -->
+      <section id="transit-resources" class="transit-section">
+        <h2>Resources</h2>
+        <p>Internal resources for UCSD Transit Team members are stored in a shared Google Drive folder.</p>
+        <a
+          class="resource-button"
+          href="https://drive.google.com/drive/folders/1VHljjC769dRwEIF0_OuNCeP-Uj6TlXBW?usp=sharing"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Open Team Resources
+        </a>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      UCSD Transit Team — UC San Diego Astronomy &amp; Astrophysics
+    </div>
+  </footer>
+
+  <script src="assets/js/transit.js"></script>
+</body>
+</html>
