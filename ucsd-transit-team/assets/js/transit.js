@@ -21,112 +21,39 @@ const MH_LON = -121.6425;
 
 // ======================= HELPERS =======================
 
+
 function parseCSV(text) {
   const lines = text.trim().split(/\r?\n/);
-  return lines.map(line => line.split(',').map(cell => cell.trim()));
-}
-
-function parseDateLoose(value) {
-  const d = new Date(value);
-  return isNaN(d.getTime()) ? null : d;
-}
-
-function normalizeToMidnight(d) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
-function groupBy(arr, keyFn) {
-  const out = new Map();
-  for (const item of arr) {
-    const key = keyFn(item);
-    if (!out.has(key)) out.set(key, []);
-    out.get(key).push(item);
-  }
-  return out;
-}
-
-// ======================= ROSTER =======================
-
-async function loadTransitRoster() {
-  const tbody = document.getElementById('roster-tbody');
-
-  if (!tbody) return;
-
-  if (!TRANSIT_ROSTER_CSV_URL || TRANSIT_ROSTER_CSV_URL.includes('PASTE_YOUR')) {
-    tbody.innerHTML = '<tr><td colspan="2">Roster URL not configured yet.</td></tr>';
-    return;
-  }
-
-  try {
-    const res = await fetch(TRANSIT_ROSTER_CSV_URL);
-    if (!res.ok) throw new Error('Network error fetching roster CSV');
-    const text = await res.text();
-    const rows = parseCSV(text);
-
-    if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="2">Roster sheet appears to be empty.</td></tr>';
-      return;
+  return lines.map(line => {
+    const cells = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') {
+        if (inQuotes && line[i+1] === '"') { 
+          cur += '"'; 
+          i++; 
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (c === ',' && !inQuotes) {
+        cells.push(cur.trim());
+        cur = '';
+      } else {
+        cur += c;
+      }
     }
-
-    const headers = rows[0];
-    const dataRows = rows.slice(1);
-
-    const idxName = headers.indexOf('Name');
-    const idxRole = headers.indexOf('Role');
-
-    if (idxName === -1 || idxRole === -1) {
-      tbody.innerHTML = '<tr><td colspan="2">Missing required columns. ' +
-        'Please include <code>Name</code> and <code>Role</code> in the header row.</td></tr>';
-      return;
-    }
-
-    if (!dataRows.length) {
-      tbody.innerHTML = '<tr><td colspan="2">No roster entries found.</td></tr>';
-      return;
-    }
-
-    // Custom sort: PI, CoI, Observer, then others; within each group, sort by Name.
-    const ROLE_ORDER = ['PI', 'COI', 'OBSERVER'];
-    function roleRank(roleRaw) {
-      if (!roleRaw) return ROLE_ORDER.length;
-      const r = String(roleRaw).trim().toUpperCase();
-      const idx = ROLE_ORDER.indexOf(r);
-      return idx === -1 ? ROLE_ORDER.length : idx;
-    }
-
-    dataRows.sort((a, b) => {
-      const roleA = a[idxRole] || '';
-      const roleB = b[idxRole] || '';
-      const rankA = roleRank(roleA);
-      const rankB = roleRank(roleB);
-      if (rankA !== rankB) return rankA - rankB;
-      const nameA = (a[idxName] || '').toLowerCase();
-      const nameB = (b[idxName] || '').toLowerCase();
-      return nameA.localeCompare(nameB);
+    cells.push(cur.trim());
+    return cells.map(v => {
+      if ((v.startsWith('"') && v.endsWith('"')) ||
+          (v.startsWith("'") && v.endsWith("'"))) {
+        return v.slice(1, -1);
+      }
+      return v;
     });
-
-    tbody.innerHTML = '';
-    dataRows.forEach(row => {
-      const tr = document.createElement('tr');
-      const tdName = document.createElement('td');
-      const tdRole = document.createElement('td');
-
-      tdName.textContent = row[idxName] || '';
-      tdRole.textContent = row[idxRole] || '';
-
-      tr.appendChild(tdName);
-      tr.appendChild(tdRole);
-      tbody.appendChild(tr);
-    });
-  } catch (err) {
-    console.error(err);
-    tbody.innerHTML = '<tr><td colspan="2">Error loading roster. ' +
-      'Check that the roster sheet is published as CSV and the URL is correct.</td></tr>';
-  }
+  });
 }
-
 // ======================= NWS FORECAST (SHARED) =======================
 
 let NWS_FORECAST_PERIODS = null;
@@ -711,6 +638,16 @@ async function loadTransitSchedule() {
 // ======================= INIT =======================
 
 document.addEventListener('DOMContentLoaded', function () {
+  // Mobile nav toggle
+  const navToggle = document.querySelector('.nav-toggle');
+  const siteHeader = document.querySelector('.site-header');
+  if (navToggle && siteHeader) {
+    navToggle.addEventListener('click', () => {
+      const isOpen = siteHeader.classList.toggle('nav-open');
+      navToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+  }
+
   loadTransitRoster();
   loadTransitSchedule();
   loadCurrentConditions();
