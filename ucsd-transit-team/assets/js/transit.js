@@ -5,15 +5,9 @@
 const TRANSIT_SCHEDULE_CSV_URL =
   'https://docs.google.com/spreadsheets/d/1h5aIKTXfG19JB0MhiM-e54l390qoAcCJFw3bmmMrcRU/export?format=csv&gid=0';
 
-// Roster sheet: Name, Role
+// Roster sheet: Name, Role, Checked out?, Responsibilities
 const TRANSIT_ROSTER_CSV_URL =
   'https://docs.google.com/spreadsheets/d/1ZKyjHZ-lcoGGsXvEr-z5pCFpbH3xmq_XoR4RObHqKUM/export?format=csv&gid=0';
-
-// Direct view URLs for Google Sheets (kept for possible future use, not shown in UI)
-const TRANSIT_SCHEDULE_SHEET_URL =
-  'https://docs.google.com/spreadsheets/d/1h5aIKTXfG19JB0MhiM-e54l390qoAcCJFw3bmmMrcRU/edit?usp=sharing';
-const TRANSIT_ROSTER_SHEET_URL   =
-  'https://docs.google.com/spreadsheets/d/1ZKyjHZ-lcoGGsXvEr-z5pCFpbH3xmq_XoR4RObHqKUM/edit?usp=sharing';
 
 // Mt Hamilton coordinates for National Weather Service API
 const MH_LAT = 37.3419;
@@ -21,39 +15,139 @@ const MH_LON = -121.6425;
 
 // ======================= HELPERS =======================
 
-
+// Robust CSV parser that respects quoted fields and commas inside quotes
 function parseCSV(text) {
   const lines = text.trim().split(/\r?\n/);
-  return lines.map(line => {
+  const rows = [];
+
+  for (const line of lines) {
     const cells = [];
-    let cur = '';
+    let current = '';
     let inQuotes = false;
+
     for (let i = 0; i < line.length; i++) {
-      const c = line[i];
-      if (c === '"') {
-        if (inQuotes && line[i+1] === '"') { 
-          cur += '"'; 
-          i++; 
+      const ch = line[i];
+      const next = i + 1 < line.length ? line[i + 1] : null;
+
+      if (ch === '"') {
+        if (inQuotes && next === '"') {
+          // Escaped quote ("")
+          current += '"';
+          i++; // skip next
         } else {
           inQuotes = !inQuotes;
         }
-      } else if (c === ',' && !inQuotes) {
-        cells.push(cur.trim());
-        cur = '';
+      } else if (ch === ',' && !inQuotes) {
+        cells.push(current.trim());
+        current = '';
       } else {
-        cur += c;
+        current += ch;
       }
     }
-    cells.push(cur.trim());
-    return cells.map(v => {
-      if ((v.startsWith('"') && v.endsWith('"')) ||
-          (v.startsWith("'") && v.endsWith("'"))) {
-        return v.slice(1, -1);
-      }
-      return v;
-    });
-  });
+    cells.push(current.trim());
+    rows.push(cells);
+  }
+
+  return rows;
 }
+
+function parseDateLoose(value) {
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function normalizeToMidnight(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function groupBy(arr, keyFn) {
+  const out = new Map();
+  for (const item of arr) {
+    const key = keyFn(item);
+    if (!out.has(key)) out.set(key, []);
+    out.get(key).push(item);
+  }
+  return out;
+}
+
+// ======================= ROSTER =======================
+
+async function loadTransitRoster() {
+  const tbody = document.getElementById('roster-tbody');
+  if (!tbody) return;
+
+  try {
+    const res = await fetch(TRANSIT_ROSTER_CSV_URL);
+    if (!res.ok) throw new Error('Network error fetching roster CSV');
+
+    const text = await res.text();
+    const rows = parseCSV(text);
+
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="3">Roster sheet appears to be empty.</td></tr>';
+      return;
+    }
+
+    const headers  = rows[0];
+    const dataRows = rows.slice(1);
+
+    const idxName = headers.indexOf('Name');
+    const idxRole = headers.indexOf('Role');
+    const idxResp = headers.indexOf('Responsibilities');
+
+    if (idxName === -1 || idxRole === -1) {
+      tbody.innerHTML =
+        '<tr><td colspan="3">Missing required columns. Please include Name and Role.</td></tr>';
+      return;
+    }
+
+    if (!dataRows.length) {
+      tbody.innerHTML = '<tr><td colspan="3">No roster entries found.</td></tr>';
+      return;
+    }
+
+    const ROLE_ORDER = ['PI', 'COI', 'OBSERVER'];
+    function roleRank(roleRaw) {
+      if (!roleRaw) return ROLE_ORDER.length;
+      const r = String(roleRaw).trim().toUpperCase();
+      const idx = ROLE_ORDER.indexOf(r);
+      return idx === -1 ? ROLE_ORDER.length : idx;
+    }
+
+    dataRows.sort((a, b) => {
+      const roleA = a[idxRole] || '';
+      const roleB = b[idxRole] || '';
+      const rankA = roleRank(roleA);
+      const rankB = roleRank(roleB);
+      if (rankA !== rankB) return rankA - rankB;
+      return (a[idxName] || '').toLowerCase().localeCompare((b[idxName] || '').toLowerCase());
+    });
+
+    tbody.innerHTML = '';
+    dataRows.forEach(row => {
+      const tr = document.createElement('tr');
+      const tdName = document.createElement('td');
+      const tdRole = document.createElement('td');
+      const tdResp = document.createElement('td');
+
+      tdName.textContent = row[idxName] || '';
+      tdRole.textContent = row[idxRole] || '';
+      tdResp.textContent = idxResp >= 0 ? (row[idxResp] || '') : '';
+
+      tr.appendChild(tdName);
+      tr.appendChild(tdRole);
+      tr.appendChild(tdResp);
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML =
+      '<tr><td colspan="3">Error loading roster. Check CSV publish settings.</td></tr>';
+  }
+}
+
 // ======================= NWS FORECAST (SHARED) =======================
 
 let NWS_FORECAST_PERIODS = null;
@@ -270,11 +364,6 @@ async function loadTransitSchedule() {
 
   if (!statusEl) return;
 
-  if (!TRANSIT_SCHEDULE_CSV_URL || TRANSIT_SCHEDULE_CSV_URL.includes('PASTE_YOUR')) {
-    statusEl.textContent = 'Schedule URL not configured yet.';
-    return;
-  }
-
   let forecastByDay = null;
   let forecastError = null;
   try {
@@ -314,7 +403,7 @@ async function loadTransitSchedule() {
       return;
     }
 
-    // Header for list view
+    // Header for list view: Date, Telescope, Observers, Forecast / Status
     if (theadEl) {
       theadEl.innerHTML = '';
       const headerRow = document.createElement('tr');
