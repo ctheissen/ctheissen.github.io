@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>30 Parsec Project &mdash; Ultracool Dwarf Spectral Catalog</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+:root{
+  --bg:#0b0e14;
+  --panel:#12161f;
+  --panel-2:#171c27;
+  --line:#242b3a;
+  --text:#e7e9ee;
+  --text-dim:#8b93a7;
+  --amber:#e0a458;   /* M dwarfs */
+  --magenta:#d1618f; /* L dwarfs */
+  --indigo:#7c8ee8;  /* T dwarfs */
+  --bad:#e08a8a;
+  --ucsd-navy:#182B49;
+  --ucsd-blue:#00629B;
+  --ucsd-gold:#FFCD00;
+  --accent:var(--ucsd-gold);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(24,43,73,0.28), transparent 60%),
+    radial-gradient(1200px 700px at 100% 0%, rgba(124,142,232,0.06), transparent 55%),
+    var(--bg);
+  color:var(--text);
+  font-family: "Iowan Old Style","Palatino Linotype","Georgia",serif;
+  min-height:100vh;
+}
+.data, table, .mono{
+  font-family: "SF Mono","JetBrains Mono","Menlo","Consolas",monospace;
+}
+.brand-stripe{
+  height:4px;
+  background:linear-gradient(90deg, var(--ucsd-navy) 0%, var(--ucsd-blue) 55%, var(--ucsd-gold) 100%);
+}
+header{
+  padding:56px 32px 28px;
+  max-width:1200px;
+  margin:0 auto;
+  border-bottom:1px solid var(--line);
+}
+.eyebrow{
+  font-family: "SF Mono","JetBrains Mono",monospace;
+  font-size:12px;
+  letter-spacing:0.18em;
+  text-transform:uppercase;
+  color:var(--text-dim);
+  margin:0 0 10px;
+}
+h1{
+  font-size:clamp(28px,4vw,44px);
+  margin:0 0 10px;
+  font-weight:600;
+  letter-spacing:-0.01em;
+}
+.subtitle{
+  color:var(--text-dim);
+  font-size:16px;
+  max-width:640px;
+  line-height:1.5;
+  margin:0 0 22px;
+}
+.legend{
+  display:flex;
+  gap:22px;
+  flex-wrap:wrap;
+  font-family:"SF Mono","JetBrains Mono",monospace;
+  font-size:12px;
+  color:var(--text-dim);
+}
+.legend span{display:inline-flex;align-items:center;gap:7px;}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+.dot.M{background:var(--amber);}
+.dot.L{background:var(--magenta);}
+.dot.T{background:var(--indigo);}
+
+main{max-width:1200px;margin:0 auto;padding:26px 32px 80px;}
+
+.controls{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+  align-items:center;
+  margin-bottom:18px;
+  position:sticky;
+  top:0;
+  background:linear-gradient(var(--bg) 82%, transparent);
+  padding:14px 0 16px;
+  z-index:5;
+}
+input[type=search]{
+  flex:1 1 240px;
+  background:var(--panel);
+  border:1px solid var(--line);
+  color:var(--text);
+  padding:10px 14px;
+  border-radius:8px;
+  font-family:"SF Mono","JetBrains Mono",monospace;
+  font-size:13px;
+  outline:none;
+}
+input[type=search]:focus{border-color:var(--accent);}
+select{
+  background:var(--panel);
+  border:1px solid var(--line);
+  color:var(--text);
+  padding:10px 12px;
+  border-radius:8px;
+  font-family:"SF Mono","JetBrains Mono",monospace;
+  font-size:13px;
+  outline:none;
+}
+.count{
+  font-family:"SF Mono","JetBrains Mono",monospace;
+  font-size:12px;
+  color:var(--text-dim);
+  white-space:nowrap;
+}
+
+.table-wrap{
+  border:1px solid var(--line);
+  border-radius:10px;
+  overflow:auto;
+  background:var(--panel);
+  max-height:72vh;
+}
+table{
+  border-collapse:collapse;
+  width:100%;
+  font-size:13px;
+}
+thead th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:var(--panel-2);
+  text-align:left;
+  padding:12px 14px;
+  font-weight:600;
+  color:var(--text-dim);
+  border-bottom:1px solid var(--line);
+  cursor:pointer;
+  user-select:none;
+  white-space:nowrap;
+}
+thead th:hover{color:var(--text);}
+thead th.active{color:var(--accent);}
+thead th .arrow{font-size:10px;margin-left:4px;opacity:0.7;}
+tbody td{
+  padding:10px 14px;
+  border-bottom:1px solid var(--line);
+  white-space:nowrap;
+  color:var(--text);
+}
+tbody tr:hover{background:rgba(255,255,255,0.025);}
+tbody tr:last-child td{border-bottom:none;}
+.spt-pill{
+  display:inline-block;
+  padding:2px 9px;
+  border-radius:100px;
+  font-size:11.5px;
+  font-weight:600;
+  border:1px solid transparent;
+}
+.spt-pill.M{color:var(--amber);background:rgba(224,164,88,0.12);border-color:rgba(224,164,88,0.3);}
+.spt-pill.L{color:var(--magenta);background:rgba(209,97,143,0.12);border-color:rgba(209,97,143,0.3);}
+.spt-pill.T{color:var(--indigo);background:rgba(124,142,232,0.12);border-color:rgba(124,142,232,0.3);}
+.spt-pill.na{color:var(--text-dim);background:rgba(255,255,255,0.04);border-color:var(--line);}
+.dr1-yes{color:#8fd0a0;}
+.dr1-no{color:var(--text-dim);}
+a.spec-link{
+  color:var(--accent);
+  text-decoration:none;
+  border-bottom:1px solid rgba(255,205,0,0.4);
+  font-size:12.5px;
+  margin-right:10px;
+}
+a.spec-link:hover{border-color:var(--accent);}
+a.plot-link{
+  color:var(--indigo);
+  text-decoration:none;
+  border-bottom:1px solid rgba(124,142,232,0.4);
+  font-size:12.5px;
+}
+a.plot-link:hover{border-color:var(--indigo);}
+.no-file{color:var(--text-dim);font-size:12.5px;}
+.empty-state, .status-state{
+  padding:60px 20px;
+  text-align:center;
+  color:var(--text-dim);
+  font-family:"SF Mono","JetBrains Mono",monospace;
+  font-size:13px;
+}
+.status-state.err{color:var(--bad);}
+footer{
+  max-width:1200px;
+  margin:0 auto;
+  padding:0 32px 60px;
+  color:var(--text-dim);
+  font-size:12px;
+  font-family:"SF Mono","JetBrains Mono",monospace;
+  line-height:1.6;
+}
+footer code{
+  background:var(--panel);
+  padding:1px 6px;
+  border-radius:4px;
+  border:1px solid var(--line);
+}
+.modal-backdrop{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(6,8,12,0.72);
+  backdrop-filter:blur(2px);
+  z-index:50;
+  padding:40px 20px;
+  overflow:auto;
+}
+.modal-backdrop.open{display:flex;justify-content:center;align-items:flex-start;}
+.modal{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:12px;
+  width:100%;
+  max-width:900px;
+  max-height:85vh;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,0.5);
+}
+.modal-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:14px 18px;
+  border-bottom:1px solid var(--line);
+  background:var(--panel-2);
+}
+.modal-title{
+  font-family:"SF Mono","JetBrains Mono",monospace;
+  font-size:13px;
+  color:var(--text);
+}
+.modal-actions{display:flex;align-items:center;gap:14px;}
+.modal-download{
+  font-family:"SF Mono","JetBrains Mono",monospace;
+  font-size:12.5px;
+  color:var(--accent);
+  text-decoration:none;
+  border:1px solid rgba(255,205,0,0.35);
+  padding:5px 11px;
+  border-radius:6px;
+}
+.modal-download:hover{background:rgba(255,205,0,0.1);}
+.modal-close{
+  background:none;
+  border:none;
+  color:var(--text-dim);
+  font-size:22px;
+  line-height:1;
+  cursor:pointer;
+  padding:0 2px;
+}
+.modal-close:hover{color:var(--text);}
+.modal-body{
+  overflow:auto;
+  padding:16px 18px;
+}
+.modal-body pre{
+  margin:0;
+  font-family:"SF Mono","JetBrains Mono","Menlo","Consolas",monospace;
+  font-size:12.5px;
+  color:var(--text);
+  white-space:pre;
+  line-height:1.6;
+}
+.modal-body .modal-msg{
+  color:var(--text-dim);
+  font-family:"SF Mono","JetBrains Mono",monospace;
+  font-size:13px;
+}
+.col-picker{position:relative;}
+.col-picker-btn{
+  background:var(--panel);
+  border:1px solid var(--line);
+  color:var(--text);
+  padding:10px 14px;
+  border-radius:8px;
+  font-family:"SF Mono","JetBrains Mono",monospace;
+  font-size:13px;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.col-picker-btn:hover{border-color:var(--accent);}
+.col-picker-btn.active{color:var(--accent);border-color:rgba(255,205,0,0.4);}
+.col-picker-panel{
+  display:none;
+  position:absolute;
+  top:calc(100% + 8px);
+  left:0;
+  width:300px;
+  max-height:360px;
+  background:var(--panel-2);
+  border:1px solid var(--line);
+  border-radius:10px;
+  box-shadow:0 16px 40px rgba(0,0,0,0.45);
+  z-index:20;
+  overflow:hidden;
+  flex-direction:column;
+}
+.col-picker-panel.open{display:flex;}
+.col-picker-panel input[type=search]{
+  margin:10px;
+  width:calc(100% - 20px);
+  flex:none;
+}
+.col-list{
+  overflow-y:auto;
+  padding:0 10px 10px;
+}
+.col-list label{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 4px;
+  font-family:"SF Mono","JetBrains Mono",monospace;
+  font-size:12.5px;
+  color:var(--text);
+  cursor:pointer;
+  border-radius:5px;
+}
+.col-list label:hover{background:rgba(255,255,255,0.04);}
+.col-list input[type=checkbox]{accent-color:var(--accent);}
+.col-list .no-match{color:var(--text-dim);padding:8px 4px;font-size:12.5px;}
+.extra-count{
+  background:var(--accent);
+  color:#12161f;
+  font-size:10.5px;
+  font-weight:700;
+  border-radius:100px;
+  padding:1px 6px;
+  margin-left:6px;
+}
+::-webkit-scrollbar{height:10px;width:10px;}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+@media (prefers-reduced-motion: reduce){*{transition:none !important;}}
+</style>
+</head>
+<body>
+<div class="brand-stripe"></div>
+<header>
+  <p class="eyebrow">Gaia-Selected &middot; TESS-Optimized &middot; DR1</p>
+  <h1>30 Parsec Project</h1>
+  <p class="subtitle">A spectral catalog of ultracool dwarfs within 30&nbsp;pc, drawn from Gaia DR3 and optimized primarily for M6&ndash;M9 dwarfs, with some later-type (L, T) objects included. Click a target's spectrum or plot to open it.</p>
+  <div class="legend">
+    <span><span class="dot M"></span>M dwarf</span>
+    <span><span class="dot L"></span>L dwarf</span>
+    <span><span class="dot T"></span>T dwarf</span>
+  </div>
+</header>
+<main>
+  <div class="controls">
+    <input type="search" id="search" placeholder="Search by name or TIC ID&hellip;">
+    <select id="sptFilter">
+      <option value="">All spectral types</option>
+      <option value="M">M dwarfs</option>
+      <option value="L">L dwarfs</option>
+      <option value="T">T dwarfs</option>
+    </select>
+    <select id="instFilter">
+      <option value="">All instruments</option>
+      <option value="SpeX-PRISM">SpeX-PRISM</option>
+      <option value="SpeX-SXD">SpeX-SXD</option>
+      <option value="FIRE">FIRE</option>
+    </select>
+    <span class="count" id="count"></span>
+    <div class="col-picker">
+      <button class="col-picker-btn" id="colPickerBtn" type="button">+ Columns<span class="extra-count" id="extraCount" style="display:none;"></span></button>
+      <div class="col-picker-panel" id="colPickerPanel">
+        <input type="search" id="colSearch" placeholder="Search columns&hellip;">
+        <div class="col-list" id="colList"></div>
+      </div>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr id="headRow"></tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <div class="empty-state" id="emptyState" style="display:none;">No targets match the current filters.</div>
+  <div class="status-state" id="statusState">Loading catalog&hellip;</div>
+</main>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Spectrum file viewer">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">spectrum.csv</span>
+      <div class="modal-actions">
+        <a id="modalDownload" class="modal-download" download>Download</a>
+        <button class="modal-close" id="modalClose" aria-label="Close">&times;</button>
+      </div>
+    </div>
+    <div class="modal-body" id="modalBody"><pre id="modalPre"></pre></div>
+  </div>
+</div>
+
+<script>
+/* ====================== EDIT THESE TO MATCH YOUR SETUP ====================== */
+
+// Path to the CSV, relative to this HTML file (or an absolute URL). Overwrite this
+// file over time with more/updated rows/columns and the table will reflect it on reload.
+const CSV_PATH = "data/30 Parsec Project Target List - DR1.csv";
+
+// Spectrum files: CSV_spectra/{directory}/{file}.csv
+// except when directory === "Theissen2026": CSV_spectra/{directory}/{instrument}/{file}.csv
+const SPECTRA_BASE_PATH = "https://ctheissen.physics.ucsd.edu/data/CSV_spectra/";
+const SPECTRA_EXT = ".csv";
+
+// Plots showing the spectrum: same folder logic, different base path/extension.
+// Adjust these two if your plots live somewhere else or use a different extension.
+const PLOTS_BASE_PATH = "https://ctheissen.physics.ucsd.edu/data/FINALspectralplots/";
+const PLOTS_EXT = ".pdf";
+
+// Directories that nest an extra {instrument}/ folder (SPEX-PRISM or SPEX-SXD) between
+// the directory and the filename.
+const INSTRUMENT_NESTED_DIRS = new Set(["Theissen2026"]);
+
+/* ============================================================================== */
+
+const FIXED_COLUMNS = [
+  {key: "name", label: "Target"},
+  {key: "tic", label: "TIC ID"},
+  {key: "ra", label: "RA"},
+  {key: "dec", label: "Dec"},
+  {key: "spt", label: "SpT"},
+  {key: "tmag", label: "Tmag"},
+  {key: "dist", label: "Dist (pc)"},
+  {key: "inst", label: "Instrument"},
+];
+
+// Raw CSV columns already represented by a fixed column above, so we don't
+// offer them again in the "+ Columns" picker.
+const HIDE_FROM_PICKER = new Set([
+  "TIC_ID","RA","Dec","Adopted_SPT","PHOT_SPT","Tmag","Distance","DR1",
+  "File","Filenames","Directory","",
+]);
+
+let sortKey = "name";
+let sortDir = 1;
+let DATA = [];
+let ALL_FIELDS = [];
+let extraCols = []; // raw CSV column names the user has opted into showing
+
+const els = {
+  search: document.getElementById("search"),
+  sptFilter: document.getElementById("sptFilter"),
+  instFilter: document.getElementById("instFilter"),
+  tbody: document.getElementById("tbody"),
+  headRow: document.getElementById("headRow"),
+  count: document.getElementById("count"),
+  empty: document.getElementById("emptyState"),
+  status: document.getElementById("statusState"),
+  colPickerBtn: document.getElementById("colPickerBtn"),
+  colPickerPanel: document.getElementById("colPickerPanel"),
+  colSearch: document.getElementById("colSearch"),
+  colList: document.getElementById("colList"),
+  extraCount: document.getElementById("extraCount"),
+};
+
+function extractName(str){
+  if(typeof str !== "string") return null;
+  const m = str.match(/(J\d{4}[+-]\d{4})/);
+  return m ? m[1] : null;
+}
+
+function instrumentFromFile(fname){
+  if(typeof fname !== "string") return null;
+  if(fname.endsWith("SPEX-PRISM")) return "SpeX-PRISM";
+  if(fname.endsWith("SPEX-SXD")) return "SpeX-SXD";
+  if(fname.endsWith("FIRE")) return "FIRE";
+  return null;
+}
+
+function instrumentFolder(inst){
+  // Folder name used on disk for the nested-instrument directories (Theissen2026).
+  if(inst === "SpeX-PRISM") return "SPEX-PRISM";
+  if(inst === "SpeX-SXD") return "SPEX-SXD";
+  if(inst === "FIRE") return "FIRE";
+  return null;
+}
+
+function sptClassOf(spt){
+  if(typeof spt !== "string") return null;
+  const m = spt.match(/[MLT]/);
+  return m ? m[0] : null;
+}
+
+function buildPath(basePath, ext, row){
+  if(!row.file || !row.directory) return null;
+  let folder = row.directory + "/";
+  if(INSTRUMENT_NESTED_DIRS.has(row.directory)){
+    const instFolder = instrumentFolder(row.inst);
+    if(!instFolder) return null; // no known instrument subfolder to nest into
+    folder += instFolder + "/";
+  }
+  return basePath + folder + row.file + ext;
+}
+
+function mapRow(r){
+  const file = (typeof r.File === "string" && r.File.trim()) ? r.File.trim() : null;
+  const filenames = (typeof r.Filenames === "string" && r.Filenames.trim()) ? r.Filenames.trim() : null;
+  const directory = (typeof r.Directory === "string" && r.Directory.trim()) ? r.Directory.trim() : null;
+  const tic = (r.TIC_ID !== undefined && r.TIC_ID !== null && r.TIC_ID !== "") ? Number(r.TIC_ID) : null;
+  const spt = (typeof r.Adopted_SPT === "string" && r.Adopted_SPT.trim())
+    ? r.Adopted_SPT.trim()
+    : ((typeof r.PHOT_SPT === "string" && r.PHOT_SPT.trim()) ? r.PHOT_SPT.trim() : null);
+  const inst = instrumentFromFile(file);
+
+  return {
+    tic,
+    name: extractName(file) || extractName(filenames) || (tic ? `TIC${tic}` : "Unknown"),
+    ra: (typeof r.RA === "string" && r.RA.trim()) ? r.RA.trim() : null,
+    dec: (typeof r.Dec === "string" && r.Dec.trim()) ? r.Dec.trim() : null,
+    spt,
+    sptClass: sptClassOf(spt),
+    tmag: (r.Tmag !== undefined && r.Tmag !== null && r.Tmag !== "" && !isNaN(r.Tmag)) ? Math.round(Number(r.Tmag)*100)/100 : null,
+    dist: (r.Distance !== undefined && r.Distance !== null && r.Distance !== "" && !isNaN(r.Distance)) ? Math.round(Number(r.Distance)*10)/10 : null,
+    dr1: r.DR1 === "Y",
+    priority: (typeof r.Priority === "string" && r.Priority.trim()) ? r.Priority.trim() : null,
+    inst,
+    directory,
+    file,
+    raw: r,
+  };
+}
+
+function specLink(row){ return buildPath(SPECTRA_BASE_PATH, SPECTRA_EXT, row); }
+function plotLink(row){ return buildPath(PLOTS_BASE_PATH, PLOTS_EXT, row); }
+
+function filteredRows(){
+  const q = els.search.value.trim().toLowerCase();
+  const sptF = els.sptFilter.value;
+  const instF = els.instFilter.value;
+
+  return DATA.filter(r => {
+    if(q){
+      const hay = (r.name||"") + " " + (r.tic||"");
+      if(!hay.toLowerCase().includes(q)) return false;
+    }
+    if(sptF && r.sptClass !== sptF) return false;
+    if(instF && r.inst !== instF) return false;
+    return true;
+  });
+}
+
+function escapeHtml(s){
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function sortValueOf(row, key){
+  if(key.startsWith("extra:")) return row.raw[key.slice(6)];
+  return row[key];
+}
+
+const NUMERIC_RE = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/;
+
+function compareValues(av, bv){
+  const aEmpty = av === null || av === undefined || av === "";
+  const bEmpty = bv === null || bv === undefined || bv === "";
+  if(aEmpty && bEmpty) return 0;
+  if(aEmpty) return 1;   // empty values sort last
+  if(bEmpty) return -1;
+  const aStr = String(av).trim();
+  const bStr = String(bv).trim();
+  if(NUMERIC_RE.test(aStr) && NUMERIC_RE.test(bStr)){
+    return parseFloat(aStr) - parseFloat(bStr);
+  }
+  return aStr.localeCompare(bStr);
+}
+
+function sortRows(rows){
+  return rows.slice().sort((a,b) => compareValues(sortValueOf(a, sortKey), sortValueOf(b, sortKey)) * sortDir);
+}
+
+function renderHead(){
+  let html = "";
+  for(const col of FIXED_COLUMNS){
+    html += `<th data-key="${col.key}">${col.label}</th>`;
+  }
+  for(const col of extraCols){
+    html += `<th data-key="extra:${col}">${escapeHtml(col)}</th>`;
+  }
+  html += `<th>Files</th>`;
+  els.headRow.innerHTML = html;
+  updateSortIndicators();
+}
+
+function updateSortIndicators(){
+  els.headRow.querySelectorAll("th[data-key]").forEach(th => {
+    th.classList.toggle("active", th.dataset.key === sortKey);
+    th.querySelector(".arrow")?.remove();
+    if(th.dataset.key === sortKey){
+      const arrow = document.createElement("span");
+      arrow.className = "arrow";
+      arrow.textContent = sortDir === 1 ? "\u2191" : "\u2193";
+      th.appendChild(arrow);
+    }
+  });
+}
+
+function render(){
+  const rows = sortRows(filteredRows());
+  els.count.textContent = rows.length + " / " + DATA.length + " targets";
+  els.empty.style.display = rows.length ? "none" : "block";
+
+  const frag = document.createDocumentFragment();
+  for(const r of rows){
+    const tr = document.createElement("tr");
+    const cls = r.sptClass || "na";
+    const sLink = specLink(r);
+    const pLink = plotLink(r);
+    const linksHtml = (sLink || pLink)
+      ? `${sLink ? `<a class="spec-link" href="${sLink}" data-view-csv="1">spectrum &rarr;</a>` : ""}${pLink ? `<a class="plot-link" href="${pLink}" target="_blank" rel="noopener">plot &rarr;</a>` : ""}`
+      : `<span class="no-file">no file</span>`;
+    let extraHtml = "";
+    for(const col of extraCols){
+      const v = r.raw ? r.raw[col] : undefined;
+      extraHtml += `<td>${(v === undefined || v === null || v === "") ? "&mdash;" : escapeHtml(v)}</td>`;
+    }
+    tr.innerHTML = `
+      <td>${r.name || "&mdash;"}</td>
+      <td>${r.tic ?? "&mdash;"}</td>
+      <td>${r.ra || "&mdash;"}</td>
+      <td>${r.dec || "&mdash;"}</td>
+      <td><span class="spt-pill ${cls}">${r.spt || "?"}</span></td>
+      <td>${r.tmag ?? "&mdash;"}</td>
+      <td>${r.dist ?? "&mdash;"}</td>
+      <td>${r.inst || "&mdash;"}</td>
+      ${extraHtml}
+      <td>${linksHtml}</td>
+    `;
+    frag.appendChild(tr);
+  }
+  els.tbody.innerHTML = "";
+  els.tbody.appendChild(frag);
+  updateSortIndicators();
+}
+
+els.headRow.addEventListener("click", e => {
+  const th = e.target.closest("th[data-key]");
+  if(!th) return;
+  const key = th.dataset.key;
+  if(sortKey === key){ sortDir *= -1; } else { sortKey = key; sortDir = 1; }
+  render();
+});
+
+function renderColPicker(){
+  const q = els.colSearch.value.trim().toLowerCase();
+  const options = ALL_FIELDS.filter(f => !HIDE_FROM_PICKER.has(f) && (!q || f.toLowerCase().includes(q)));
+  if(!options.length){
+    els.colList.innerHTML = '<div class="no-match">No matching columns.</div>';
+    return;
+  }
+  els.colList.innerHTML = options.map(f => {
+    const checked = extraCols.includes(f) ? "checked" : "";
+    const id = "col_" + f.replace(/[^a-zA-Z0-9]/g, "_");
+    return `<label for="${id}"><input type="checkbox" id="${id}" data-col="${escapeHtml(f)}" ${checked}> ${escapeHtml(f)}</label>`;
+  }).join("");
+}
+
+els.colPickerBtn.addEventListener("click", () => {
+  const willOpen = !els.colPickerPanel.classList.contains("open");
+  els.colPickerPanel.classList.toggle("open", willOpen);
+  els.colPickerBtn.classList.toggle("active", willOpen);
+  if(willOpen){ renderColPicker(); els.colSearch.focus(); }
+});
+
+document.addEventListener("click", e => {
+  if(!els.colPickerPanel.contains(e.target) && e.target !== els.colPickerBtn && !els.colPickerBtn.contains(e.target)){
+    els.colPickerPanel.classList.remove("open");
+    els.colPickerBtn.classList.remove("active");
+  }
+});
+
+els.colSearch.addEventListener("input", renderColPicker);
+
+els.colList.addEventListener("change", e => {
+  const cb = e.target.closest("input[type=checkbox]");
+  if(!cb) return;
+  const col = cb.dataset.col;
+  if(cb.checked){
+    if(!extraCols.includes(col)) extraCols.push(col);
+  } else {
+    extraCols = extraCols.filter(c => c !== col);
+    if(sortKey === "extra:" + col){ sortKey = "name"; sortDir = 1; }
+  }
+  els.extraCount.style.display = extraCols.length ? "inline-block" : "none";
+  els.extraCount.textContent = extraCols.length;
+  renderHead();
+  render();
+});
+
+[els.search, els.sptFilter, els.instFilter].forEach(el => {
+  el.addEventListener("input", render);
+  el.addEventListener("change", render);
+});
+
+/* ---- CSV spectrum viewer modal ---- */
+const modal = {
+  backdrop: document.getElementById("modalBackdrop"),
+  title: document.getElementById("modalTitle"),
+  pre: document.getElementById("modalPre"),
+  body: document.getElementById("modalBody"),
+  download: document.getElementById("modalDownload"),
+  close: document.getElementById("modalClose"),
+};
+
+function openModal(url){
+  const filename = url.split("/").pop();
+  modal.title.textContent = filename;
+  modal.download.href = url;
+  modal.download.setAttribute("download", filename);
+  modal.body.innerHTML = '<pre id="modalPre" class="modal-msg">Loading&hellip;</pre>';
+  modal.backdrop.classList.add("open");
+  document.body.style.overflow = "hidden";
+
+  fetch(url)
+    .then(r => { if(!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+    .then(text => {
+      const pre = document.createElement("pre");
+      pre.id = "modalPre";
+      pre.textContent = text;
+      modal.body.innerHTML = "";
+      modal.body.appendChild(pre);
+    })
+    .catch(err => {
+      modal.body.innerHTML = '<pre class="modal-msg">Couldn\'t load this file for preview (' +
+        err.message + '). Right-click the Download link above and choose "Save link as&hellip;" to get it directly.</pre>';
+    });
+}
+
+function closeModal(){
+  modal.backdrop.classList.remove("open");
+  document.body.style.overflow = "";
+}
+
+modal.close.addEventListener("click", closeModal);
+modal.backdrop.addEventListener("click", e => { if(e.target === modal.backdrop) closeModal(); });
+document.addEventListener("keydown", e => { if(e.key === "Escape") closeModal(); });
+
+document.getElementById("tbody").addEventListener("click", e => {
+  const link = e.target.closest("a[data-view-csv]");
+  if(!link) return;
+  e.preventDefault();
+  openModal(link.getAttribute("href"));
+});
+
+function showStatus(msg, isErr){
+  els.status.style.display = "block";
+  els.status.textContent = msg;
+  els.status.classList.toggle("err", !!isErr);
+}
+
+renderHead();
+
+Papa.parse(CSV_PATH, {
+  download: true,
+  header: true,
+  skipEmptyLines: true,
+  complete: function(results){
+    if(!results.data || !results.data.length){
+      showStatus("Loaded " + CSV_PATH + " but found no rows. Check the file has a header row and data.", true);
+      return;
+    }
+    DATA = results.data.map(mapRow).filter(r => r.dr1 === true);
+    ALL_FIELDS = (results.meta && results.meta.fields) ? results.meta.fields.filter(Boolean) : [];
+    els.status.style.display = "none";
+    renderHead();
+    render();
+  },
+  error: function(err){
+    showStatus(
+      "Couldn't load " + CSV_PATH + ". If you're opening this file directly (file://), " +
+      "serve the folder over http instead (e.g. `python3 -m http.server`) and make sure " +
+      CSV_PATH + " sits next to this HTML file.",
+      true
+    );
+    console.error(err);
+  }
+});
+</script>
+</body>
+</html>
