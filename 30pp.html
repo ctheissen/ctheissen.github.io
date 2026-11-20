@@ -493,8 +493,8 @@ const INSTRUMENT_NESTED_DIRS = new Set(["Theissen2026"]);
 //   {FLOWCHART_BASE_PATH}{FLOWCHART_PREFIX}{File}.pdf/.png  (full resolution, linked)
 const FLOWCHART_BASE_PATH = "https://ctheissen.physics.ucsd.edu/data/SpT_flowcharts/";
 const FLOWCHART_PREFIX = "SpT_Method_Flowchart_";
-// Instruments that have flowcharts (the script classifies SpeX prism spectra).
-const FLOWCHART_INSTRUMENTS = new Set(["SpeX-PRISM"]);
+// Instruments that have flowcharts (SXD and FIRE are degraded to prism resolution, R = 120, first).
+const FLOWCHART_INSTRUMENTS = new Set(["SpeX-PRISM", "SpeX-SXD", "FIRE"]);
 
 /* ============================================================================== */
 
@@ -504,7 +504,7 @@ const FIXED_COLUMNS = [
   {key: "ra", label: "RA"},
   {key: "dec", label: "Dec"},
   {key: "spt", label: "SpT"},
-  {key: "tmag", label: "Tmag"},
+  {key: "gmag", label: "G (mag)"},
   {key: "dist", label: "Dist (pc)"},
   {key: "inst", label: "Instrument"},
 ];
@@ -512,7 +512,7 @@ const FIXED_COLUMNS = [
 // Raw CSV columns already represented by a fixed column above, so we don't
 // offer them again in the "+ Columns" picker.
 const HIDE_FROM_PICKER = new Set([
-  "TIC_ID","RA","Dec","Adopted_SPT","PHOT_SPT","Tmag","Distance","DR1",
+  "TIC_ID","RA","Dec","Adopted_SPT","PHOT_SPT","Gmag","Distance","DR1",
   "File","Filenames","Directory","",
 ]);
 
@@ -594,7 +594,7 @@ function mapRow(r){
     dec: (typeof r.Dec === "string" && r.Dec.trim()) ? r.Dec.trim() : null,
     spt,
     sptClass: sptClassOf(spt),
-    tmag: (r.Tmag !== undefined && r.Tmag !== null && r.Tmag !== "" && !isNaN(r.Tmag)) ? Math.round(Number(r.Tmag)*100)/100 : null,
+    gmag: (r.Gmag !== undefined && r.Gmag !== null && r.Gmag !== "" && !isNaN(r.Gmag)) ? Math.round(Number(r.Gmag)*100)/100 : null,
     dist: (r.Distance !== undefined && r.Distance !== null && r.Distance !== "" && !isNaN(r.Distance)) ? Math.round(Number(r.Distance)*10)/10 : null,
     dr1: r.DR1 === "Y",
     priority: (typeof r.Priority === "string" && r.Priority.trim()) ? r.Priority.trim() : null,
@@ -721,7 +721,7 @@ function render(){
       <td>${r.ra || "&mdash;"}</td>
       <td>${r.dec || "&mdash;"}</td>
       <td><span class="spt-pill ${cls}">${r.spt || "?"}</span></td>
-      <td>${r.tmag ?? "&mdash;"}</td>
+      <td>${r.gmag ?? "&mdash;"}</td>
       <td>${r.dist ?? "&mdash;"}</td>
       <td>${r.inst || "&mdash;"}</td>
       ${extraHtml}
