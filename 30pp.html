@@ -21,6 +21,7 @@
   --ucsd-blue:#00629B;
   --ucsd-gold:#FFCD00;
   --accent:var(--ucsd-gold);
+  --teal:#5fc4a0;    /* classification flowchart links */
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
@@ -190,6 +191,22 @@ a.plot-link{
   font-size:12.5px;
 }
 a.plot-link:hover{border-color:var(--indigo);}
+a.fc-link{
+  color:var(--teal);
+  text-decoration:none;
+  border-bottom:1px solid rgba(95,196,160,0.4);
+  font-size:12.5px;
+  margin-right:10px;
+}
+a.fc-link:hover{border-color:var(--teal);}
+a.csv-link{
+  color:var(--text-dim);
+  text-decoration:none;
+  border-bottom:1px solid var(--line);
+  font-size:12.5px;
+  margin-right:10px;
+}
+a.csv-link:hover{color:var(--text);border-color:var(--text-dim);}
 .no-file{color:var(--text-dim);font-size:12.5px;}
 .empty-state, .status-state{
   padding:60px 20px;
@@ -230,8 +247,8 @@ footer code{
   border:1px solid var(--line);
   border-radius:12px;
   width:100%;
-  max-width:900px;
-  max-height:85vh;
+  max-width:980px;
+  max-height:90vh;
   display:flex;
   flex-direction:column;
   overflow:hidden;
@@ -261,6 +278,33 @@ footer code{
   border-radius:6px;
 }
 .modal-download:hover{background:rgba(255,205,0,0.1);}
+button.modal-download{background:none;cursor:pointer;}
+.modal-tabs{
+  display:flex;
+  gap:4px;
+  padding:0 18px;
+  border-bottom:1px solid var(--line);
+  background:var(--panel-2);
+}
+.modal-tabs button{
+  background:none;
+  border:none;
+  border-bottom:2px solid transparent;
+  color:var(--text-dim);
+  font-family:"SF Mono","JetBrains Mono",monospace;
+  font-size:12.5px;
+  padding:9px 12px;
+  cursor:pointer;
+}
+.modal-tabs button:hover:not(:disabled){color:var(--text);}
+.modal-tabs button.active{color:var(--accent);border-bottom-color:var(--accent);}
+.modal-tabs button:disabled{opacity:0.35;cursor:default;}
+.flowchart-wrap{
+  background:#fff;
+  border-radius:8px;
+  padding:8px;
+}
+.flowchart-wrap img{width:100%;height:auto;display:block;}
 .modal-close{
   background:none;
   border:none;
@@ -361,7 +405,7 @@ footer code{
 <header>
   <p class="eyebrow">Gaia-Selected &middot; TESS-Optimized &middot; DR1</p>
   <h1>30 Parsec Project</h1>
-  <p class="subtitle">A spectral catalog of ultracool dwarfs within 30&nbsp;pc, drawn from Gaia DR3 and optimized primarily for M6&ndash;M9 dwarfs, with some later-type (L, T) objects included. Click a target's spectrum or plot to open it.</p>
+  <p class="subtitle">A spectral catalog of ultracool dwarfs within 30&nbsp;pc, drawn from Gaia DR3 and optimized primarily for M6&ndash;M9 dwarfs, with some later-type (L, T) objects included. Click a target's flowchart to see how its spectral type was assigned, or its spectrum to preview and download the data.</p>
   <div class="legend">
     <span><span class="dot M"></span>M dwarf</span>
     <span><span class="dot L"></span>L dwarf</span>
@@ -405,15 +449,20 @@ footer code{
 </main>
 
 <div class="modal-backdrop" id="modalBackdrop">
-  <div class="modal" role="dialog" aria-modal="true" aria-label="Spectrum file viewer">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Target viewer">
     <div class="modal-header">
-      <span class="modal-title" id="modalTitle">spectrum.csv</span>
+      <span class="modal-title" id="modalTitle"></span>
       <div class="modal-actions">
-        <a id="modalDownload" class="modal-download" download>Download</a>
+        <span class="modal-actions" id="modalLinks"></span>
+        <button class="modal-download" id="modalCopy" type="button">Copy link</button>
         <button class="modal-close" id="modalClose" aria-label="Close">&times;</button>
       </div>
     </div>
-    <div class="modal-body" id="modalBody"><pre id="modalPre"></pre></div>
+    <div class="modal-tabs" id="modalTabs">
+      <button type="button" data-tab="flowchart">Classification flowchart</button>
+      <button type="button" data-tab="csv">Spectrum CSV</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
   </div>
 </div>
 
@@ -437,6 +486,15 @@ const PLOTS_EXT = ".pdf";
 // Directories that nest an extra {instrument}/ folder (SPEX-PRISM or SPEX-SXD) between
 // the directory and the filename.
 const INSTRUMENT_NESTED_DIRS = new Set(["Theissen2026"]);
+
+// Classification flowcharts from SpT_Method_Flowchart.py, in one flat folder keyed by the
+// catalog's File column:
+//   {FLOWCHART_BASE_PATH}web/{FLOWCHART_PREFIX}{File}.png   (light version shown in the viewer)
+//   {FLOWCHART_BASE_PATH}{FLOWCHART_PREFIX}{File}.pdf/.png  (full resolution, linked)
+const FLOWCHART_BASE_PATH = "https://ctheissen.physics.ucsd.edu/data/SpT_flowcharts/";
+const FLOWCHART_PREFIX = "SpT_Method_Flowchart_";
+// Instruments that have flowcharts (the script classifies SpeX prism spectra).
+const FLOWCHART_INSTRUMENTS = new Set(["SpeX-PRISM"]);
 
 /* ============================================================================== */
 
@@ -549,6 +607,15 @@ function mapRow(r){
 
 function specLink(row){ return buildPath(SPECTRA_BASE_PATH, SPECTRA_EXT, row); }
 function plotLink(row){ return buildPath(PLOTS_BASE_PATH, PLOTS_EXT, row); }
+function flowchartLink(row, variant){
+  // variant: "web" (viewer PNG), "pdf" or "png" (full resolution)
+  if(!row.file || !FLOWCHART_INSTRUMENTS.has(row.inst)) return null;
+  const stem = FLOWCHART_PREFIX + row.file;
+  if(variant === "pdf") return FLOWCHART_BASE_PATH + stem + ".pdf";
+  if(variant === "png") return FLOWCHART_BASE_PATH + stem + ".png";
+  return FLOWCHART_BASE_PATH + "web/" + stem + ".png";
+}
+let FILE_INDEX = new Map(); // File -> row, for the viewer and #File links
 
 function filteredRows(){
   const q = els.search.value.trim().toLowerCase();
@@ -635,8 +702,13 @@ function render(){
     const cls = r.sptClass || "na";
     const sLink = specLink(r);
     const pLink = plotLink(r);
-    const linksHtml = (sLink || pLink)
-      ? `${sLink ? `<a class="spec-link" href="${sLink}" data-view-csv="1">spectrum &rarr;</a>` : ""}${pLink ? `<a class="plot-link" href="${pLink}" target="_blank" rel="noopener">plot &rarr;</a>` : ""}`
+    const fLink = flowchartLink(r);
+    const fileAttr = r.file ? escapeHtml(r.file) : "";
+    const linksHtml = (sLink || pLink || fLink)
+      ? (fLink ? `<a class="fc-link" href="#${fileAttr}" data-open="flowchart" data-file="${fileAttr}">flowchart &rarr;</a>` : "")
+        + (sLink ? `<a class="spec-link" href="#${fileAttr}/csv" data-open="csv" data-file="${fileAttr}">spectrum &rarr;</a>` : "")
+        + (sLink ? `<a class="csv-link" href="${sLink}" download>csv&nbsp;&darr;</a>` : "")
+        + (pLink ? `<a class="plot-link" href="${pLink}" target="_blank" rel="noopener">plot &rarr;</a>` : "")
       : `<span class="no-file">no file</span>`;
     let extraHtml = "";
     for(const col of extraCols){
@@ -721,54 +793,132 @@ els.colList.addEventListener("change", e => {
   el.addEventListener("change", render);
 });
 
-/* ---- CSV spectrum viewer modal ---- */
+/* ---- Target viewer: classification flowchart + spectrum CSV ----
+   Every view has its own address, e.g. 30pp.html#J0840+1824_20131212_SPEX-PRISM (flowchart)
+   or 30pp.html#J0840+1824_20131212_SPEX-PRISM/csv (spectrum), so it can be linked directly. */
 const modal = {
   backdrop: document.getElementById("modalBackdrop"),
   title: document.getElementById("modalTitle"),
-  pre: document.getElementById("modalPre"),
+  links: document.getElementById("modalLinks"),
+  copy: document.getElementById("modalCopy"),
+  tabs: document.getElementById("modalTabs"),
   body: document.getElementById("modalBody"),
-  download: document.getElementById("modalDownload"),
   close: document.getElementById("modalClose"),
 };
+const csvCache = new Map(); // url -> text
+let current = {row: null, tab: null, blobUrl: null};
 
-function openModal(url){
-  const filename = url.split("/").pop();
-  modal.title.textContent = filename;
-  modal.download.href = url;
-  modal.download.setAttribute("download", filename);
-  modal.body.innerHTML = '<pre id="modalPre" class="modal-msg">Loading&hellip;</pre>';
+function linkHtml(label, href, opts = {}){
+  const dl = opts.download ? ` download="${escapeHtml(opts.download)}"` : ` target="_blank" rel="noopener"`;
+  return `<a class="modal-download" href="${escapeHtml(href)}"${dl}>${label}</a>`;
+}
+
+function setHash(row, tab){
+  history.replaceState(null, "", "#" + row.file + (tab === "csv" ? "/csv" : ""));
+}
+
+function openModal(row, tab){
+  if(!row) return;
+  current.row = row;
+  modal.title.textContent = row.name + "  ·  " + row.file;
+  modal.tabs.querySelector('[data-tab="flowchart"]').disabled = !flowchartLink(row);
+  modal.tabs.querySelector('[data-tab="csv"]').disabled = !specLink(row);
+  if(tab === "flowchart" && !flowchartLink(row)) tab = "csv";
+  if(tab === "csv" && !specLink(row)) tab = "flowchart";
   modal.backdrop.classList.add("open");
   document.body.style.overflow = "hidden";
+  showTab(tab);
+}
 
+function showTab(tab){
+  const row = current.row;
+  current.tab = tab;
+  modal.tabs.querySelectorAll("button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  setHash(row, tab);
+  if(current.blobUrl){ URL.revokeObjectURL(current.blobUrl); current.blobUrl = null; }
+
+  if(tab === "flowchart"){
+    modal.links.innerHTML = linkHtml("PDF &nearr;", flowchartLink(row, "pdf")) + linkHtml("Full PNG &nearr;", flowchartLink(row, "png"));
+    const wrap = document.createElement("div");
+    wrap.className = "flowchart-wrap";
+    const img = new Image();
+    img.alt = "Spectral classification flowchart for " + row.name;
+    img.onerror = () => {
+      modal.body.innerHTML = '<pre class="modal-msg">No classification flowchart is available for this spectrum yet.</pre>';
+      modal.links.innerHTML = "";
+    };
+    img.src = flowchartLink(row, "web");
+    wrap.appendChild(img);
+    modal.body.innerHTML = "";
+    modal.body.appendChild(wrap);
+    return;
+  }
+
+  // Spectrum CSV: preview the text; once loaded, Download saves the copy already fetched
+  // (a plain download attribute is ignored for files on another domain).
+  const url = specLink(row);
+  const filename = url.split("/").pop();
+  const plot = plotLink(row);
+  const extra = plot ? linkHtml("Plot &nearr;", plot) : "";
+  modal.links.innerHTML = linkHtml("Download CSV", url) + extra;
+  modal.body.innerHTML = '<pre class="modal-msg">Loading&hellip;</pre>';
+  const show = text => {
+    if(current.row !== row || current.tab !== "csv") return; // user moved on
+    const pre = document.createElement("pre");
+    pre.textContent = text;
+    modal.body.innerHTML = "";
+    modal.body.appendChild(pre);
+    current.blobUrl = URL.createObjectURL(new Blob([text], {type: "text/csv"}));
+    modal.links.innerHTML = linkHtml("Download CSV", current.blobUrl, {download: filename}) + extra;
+  };
+  if(csvCache.has(url)){ show(csvCache.get(url)); return; }
   fetch(url)
     .then(r => { if(!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
-    .then(text => {
-      const pre = document.createElement("pre");
-      pre.id = "modalPre";
-      pre.textContent = text;
-      modal.body.innerHTML = "";
-      modal.body.appendChild(pre);
-    })
+    .then(text => { csvCache.set(url, text); show(text); })
     .catch(err => {
+      if(current.row !== row || current.tab !== "csv") return;
       modal.body.innerHTML = '<pre class="modal-msg">Couldn\'t load this file for preview (' +
-        err.message + '). Right-click the Download link above and choose "Save link as&hellip;" to get it directly.</pre>';
+        escapeHtml(err.message) + '). Use Download CSV above to get it directly.</pre>';
     });
 }
 
 function closeModal(){
+  if(!modal.backdrop.classList.contains("open")) return;
   modal.backdrop.classList.remove("open");
   document.body.style.overflow = "";
+  if(current.blobUrl){ URL.revokeObjectURL(current.blobUrl); current.blobUrl = null; }
+  current.row = null;
+  history.replaceState(null, "", location.pathname + location.search);
 }
 
+function openFromHash(){
+  const h = decodeURIComponent(location.hash.slice(1));
+  if(!h){ closeModal(); return; }
+  const [file, view] = h.split("/");
+  const row = FILE_INDEX.get(file);
+  if(row) openModal(row, view === "csv" ? "csv" : "flowchart");
+}
+
+modal.tabs.addEventListener("click", e => {
+  const b = e.target.closest("button[data-tab]");
+  if(b && !b.disabled && current.row) showTab(b.dataset.tab);
+});
+modal.copy.addEventListener("click", () => {
+  navigator.clipboard?.writeText(location.href).then(() => {
+    modal.copy.textContent = "Copied";
+    setTimeout(() => { modal.copy.textContent = "Copy link"; }, 1500);
+  });
+});
 modal.close.addEventListener("click", closeModal);
 modal.backdrop.addEventListener("click", e => { if(e.target === modal.backdrop) closeModal(); });
 document.addEventListener("keydown", e => { if(e.key === "Escape") closeModal(); });
+window.addEventListener("hashchange", openFromHash);
 
 document.getElementById("tbody").addEventListener("click", e => {
-  const link = e.target.closest("a[data-view-csv]");
+  const link = e.target.closest("a[data-open]");
   if(!link) return;
   e.preventDefault();
-  openModal(link.getAttribute("href"));
+  openModal(FILE_INDEX.get(link.dataset.file), link.dataset.open);
 });
 
 function showStatus(msg, isErr){
@@ -789,10 +939,12 @@ Papa.parse(CSV_PATH, {
       return;
     }
     DATA = results.data.map(mapRow).filter(r => r.dr1 === true);
+    FILE_INDEX = new Map(DATA.filter(r => r.file).map(r => [r.file, r]));
     ALL_FIELDS = (results.meta && results.meta.fields) ? results.meta.fields.filter(Boolean) : [];
     els.status.style.display = "none";
     renderHead();
     render();
+    openFromHash(); // a shared link such as 30pp.html#J0840+1824_20131212_SPEX-PRISM opens that target
   },
   error: function(err){
     showStatus(
